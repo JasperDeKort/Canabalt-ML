@@ -6,7 +6,6 @@ Created on Mon Jun 26 17:29:02 2017
 """
 
 import numpy as np
-from PIL import ImageGrab
 import cv2
 import keypress
 import time
