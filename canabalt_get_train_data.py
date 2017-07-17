@@ -33,11 +33,13 @@ def play(deadcheck):
         
         keys = key_check()
         output = keys_to_output(keys)
+#        print(output)
         train_data.append([savable, output])                        
         died = deadcheck.predict(X)        
         if died == 1:
+            # only activate on 50 consecutive dead checks, to disregard false positives
             consecutivedead += 1
-            if consecutivedead > 20:
+            if consecutivedead > 50:
                 dead = True
         if died == 0:
             consecutivedead = 0
@@ -47,7 +49,9 @@ def play(deadcheck):
     print('run took {} seconds, for {} screens, for {} seconds per screen'.format(run_time,
                                                                                   len(train_data),
                                                                                   (run_time/len(train_data))))
-    return train_data[200:-100], run_time
+    # cut of first 200 screens as the start of the game is the same every time
+    # cut of the last 250 screens as that playing resulted in death, and should not be learned by the network
+    return train_data[:-250], run_time
 
 def main():
     file_name = 'training_data.npy'
@@ -60,10 +64,10 @@ def main():
         training_data = []
     with open('MLPtrained_dead.pickle','rb') as f:
         deadcheck = pickle.load(f)
-        
+         
     for i in range(3,0,-1):
         print(i)
-        time.sleep(1)
+        time.sleep(1)    
     
     startdata = len(training_data)
     
@@ -75,12 +79,14 @@ def main():
     
         run_data, run_time = play(deadcheck)
         
+        # disregard any short runs
         if run_time > 11:
             training_data += run_data  
         else:
             print('run too short, not saving')
         
-        if len(training_data) > startdata + 2000:
+        # only save data once every ... data points, 
+        if len(training_data) > startdata + 5000:
             np.save(file_name,training_data)
             print('saved a total of {} samples'.format(len(training_data)))
             startdata = len(training_data)

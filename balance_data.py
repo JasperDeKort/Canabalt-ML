@@ -38,7 +38,7 @@ def balance_data(train_data, overwrite=False):
             print('error value at {}'.format(data.index))
     
     print('spaces: {}'.format(len(spaces)))
-    fulldata = spaces + nones[:int(len(spaces))]
+    fulldata = spaces + nones[:int(len(spaces)*2)]
     shuffle(fulldata)
     if overwrite:
         np.save('training_data.npy',fulldata)    

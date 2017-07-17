@@ -3,6 +3,8 @@
 Created on Mon Jun 26 17:29:02 2017
 
 @author: jaspe
+
+old version of play_canabalt. don't use this
 """
 
 import numpy as np

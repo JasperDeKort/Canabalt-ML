@@ -20,14 +20,14 @@ def train(mlp = None,train_data=None , iteration=''):
     X = [i[0] for i in train_data]
     y = [i[1] for i in train_data]
     
-    X_train = X[:-500]
-    X_test = X[-500:]
+    X_train = X[:-1000]
+    X_test = X[-1000:]
     
-    y_train = y[:-500]
-    y_test = y[-500:]
+    y_train = y[:-1000]
+    y_test = y[-1000:]
     
     if mlp == None:
-        mlp = MLPClassifier(solver='adam', alpha=1e-4,hidden_layer_sizes=(200,50), warm_start=True)
+        mlp = MLPClassifier(solver='adam', alpha=1e-4,hidden_layer_sizes=(200,100,50), warm_start=True)
         print('starting training of new network')
     else:
         print('previous network passed, using hotstart')
@@ -51,7 +51,7 @@ def main():
         iternumber = pickle.load(f)
     with open('MLPtrained_{}.pickle'.format(iternumber - 1 ),'rb') as f:
         mlp = pickle.load(f) 
-    train(mlp=mlp, iteration=str(iternumber))
+    train(mlp=None, iteration=str(1))
 
         
 if __name__ == "__main__":

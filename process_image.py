@@ -20,5 +20,6 @@ def process_image(original_image):
     processed_image = cv2.resize(processed_image,(80,60))
     processed_image = cv2.threshold(processed_image, 30,255,cv2.THRESH_BINARY)[1]
     processed_image = processed_image.reshape(4800)
+#    processed_image = processed_image.reshape(1,-1)
 #    processed_image = cv2.Canny(processed_image, threshold1=350, threshold2=450)
     return processed_image
