@@ -6,7 +6,6 @@ Created on Wed Jun 28 11:53:34 2017
 """
 
 import pickle
-from sklearn.neural_network import MLPClassifier
 from grabscreen import grab_screen
 import numpy as np
 import keypress
@@ -14,29 +13,31 @@ import cv2
 from process_image import process_image
 import time
 import os
+import tensorflow as tf
+import train_tensorflow
+from tensorflow.contrib.learn import DNNClassifier, SKCompat
 ## following imports are for use in the self reinforcement loop. 
 #from balance_data import balance_data
 #from trainsklearn import train
 
-file_name = 'training_data.npy'  
+file_name = 'training_data.npy'
 
-def play(mlp, deadcheck):
+def play(estimator, deadcheck):  
     start = time.time()
     dead = False
     consecutivedead = 0
-
-## not saving the training data gives significant speed inmprovements. 
-## replaced by a counter under the same name to preserve speed reports
-#    train_data = []
     train_data = 0
-    space = False
-#    roundtime = time.time()
-    
+    space = False   
     current = np.zeros(4800)
     previous1 = np.zeros(4800)
     previous2 = np.zeros(4800)
-    previous3 = np.zeros(4800)    
-
+    previous3 = np.zeros(4800)
+    
+    
+    print('starting to play')
+    keypress.PressKey(0x1C)
+    time.sleep(0.2)
+    keypress.ReleaseKey(0x1C)
     while not dead:
                
         screen = grab_screen(region =(0,40,800,640))
@@ -44,35 +45,26 @@ def play(mlp, deadcheck):
         savable = np.append(current,previous3)
         X = savable.reshape(1,-1)
         
-        button = mlp.predict(X)
+        feed_dict={"x": X}
+        result = estimator.predict(feed_dict)
         
-        if button == 1: 
+        if train_data == 0:
+            print(result)
+        if result == 1 : 
             if space == False:
                 keypress.PressKey(0x39)
                 space = True
-                print('space down')
+                #print('space down')
         else:
             if space == True:
                 keypress.ReleaseKey(0x39) 
                 space = False
-                print('space up')
-            
-#        train_data.append([savable, space])   
-        train_data += 1              
-        
-        Xdead = current.reshape(1,-1)
-        died = deadcheck.predict(Xdead)        
-        if died == 1:
-            consecutivedead += 1
-            if consecutivedead > 50:
-                dead = True
-        if died == 0:
-            consecutivedead = 0
-        
-#        timediff = time.time()-roundtime
-#        if timediff < 0.023: 
-#            time.sleep(0.01)
-#            roundtime=time.time() 
+                #print('space up')
+               
+        train_data += 1   
+        if (train_data % 1000) == 0:
+            print((time.time()-start)/1000)
+            start = time.time()                   
         
     run_time = time.time()-start       
         
@@ -84,19 +76,7 @@ def play(mlp, deadcheck):
     
               
 def main():
-    with open('iternumber.pickle','rb') as f:
-        iternumber = pickle.load(f) 
-        iternumber = 2
-    
-#    if os.path.isfile(file_name):
-#        print('file exists. loading data')
-#        training_data = list(np.load(file_name))
-#    else:
-#        print('file does not exist. creating new file')
-#        training_data = []   
-    print('opening: MLPtrained_{}.pickle'.format(iternumber - 1))
-    with open('MLPtrained_{}.pickle'.format(iternumber - 1 ),'rb') as f:
-        mlp = pickle.load(f)    
+    iternumber = 2
     with open('MLPtrained_dead.pickle','rb') as f:
         deadcheck = pickle.load(f)
         
@@ -105,22 +85,19 @@ def main():
         run_times = list(np.load('run_times_{}.npy '.format(iternumber-1)))
     else:
         run_times = []
-#        
-#    startdata = len(training_data)
-#    startdata2 = startdata
+        
+    feature_columns = [tf.contrib.layers.real_valued_column("x", dimension=9600)]
+    estimator = SKCompat(DNNClassifier(feature_columns=feature_columns,
+                              hidden_units=[256,64],
+                              model_dir='./model/'))
 
     for i in range(4,0,-1):
         print(i)
         time.sleep(1)
-        
-        
-    while True:   
-        print('starting to play')
-        keypress.PressKey(0x1C)
-        time.sleep(0.2)
-        keypress.ReleaseKey(0x1C)
-    
-        run_data, run_time = play(mlp,deadcheck)
+                    
+#    saver = tf.train.import_meta_graph('canabalt nn 200 50.meta')
+    while True:    
+        run_data, run_time = play(estimator, deadcheck)
         run_times.append(run_time)
         np.save('run_times_{}.npy'.format(iternumber-1), run_times)
         

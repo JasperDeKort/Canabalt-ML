@@ -29,12 +29,12 @@ def mergepreviousimages(train_data):
     print(new_train_data[1][0].shape)
     return new_train_data[3:-3]
 
-def balance_data(train_data, overwrite=False):
-    shuffle(train_data)
+def balance_data(train_data, overwrite=False):  
     spaces = []
     nones = []
     
     train_data = mergepreviousimages(train_data)
+    shuffle(train_data)    
     
     for data in train_data:
         if data[1] == 0:
@@ -45,12 +45,9 @@ def balance_data(train_data, overwrite=False):
             print('error value at {}'.format(data.index))
     
     print('spaces: {}'.format(len(spaces)))
-    fulldata = spaces + nones[:int(len(spaces)*4)]
+    fulldata = spaces + nones[:int(len(spaces)*2)]
     shuffle(fulldata)
-    if overwrite:
-        np.save('training_data.npy',fulldata)    
-    else:
-        np.save('training_data_balanced.npy',fulldata)
+    np.save('training_data_balanced_tf.npy',fulldata)
     df = pd.DataFrame(fulldata)
     print(Counter(df[1].apply(str)))
     

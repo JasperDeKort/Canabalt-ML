@@ -20,14 +20,14 @@ def train(mlp = None,train_data=None , iteration=''):
     X = [i[0] for i in train_data]
     y = [i[1] for i in train_data]
     
-    X_train = X[:-1000]
-    X_test = X[-1000:]
+    X_train = X[:-2000]
+    X_test = X[-2000:]
     
-    y_train = y[:-1000]
-    y_test = y[-1000:]
+    y_train = y[:-2000]
+    y_test = y[-2000:]
     
     if mlp == None:
-        mlp = MLPClassifier(solver='adam', alpha=1e-4,hidden_layer_sizes=(200,100,50), warm_start=True)
+        mlp = MLPClassifier(solver='adam', alpha=1e-4,hidden_layer_sizes=(200,50), warm_start=True)
         print('starting training of new network')
     else:
         print('previous network passed, using hotstart')
