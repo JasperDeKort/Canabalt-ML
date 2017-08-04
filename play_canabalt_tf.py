@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 11:53:34 2017
 
@@ -15,18 +14,43 @@ from process_image import process_image
 import time
 import os
 import tensorflow as tf
-import train_tensorflow
+import train_tensorflow3
 ## following imports are for use in the self reinforcement loop. 
 #from balance_data import balance_data
 #from trainsklearn import train
 
-file_name = 'training_data.npy'  
+file_name = 'training_data.npy' 
+
+n_classes = 2
+inputsize = 9600
+n_nodes_hl1 = 100
+n_nodes_hl2 = 50
+n_nodes_hl3 = 20
+
+def init_weights(shape, name):
+    return tf.Variable(tf.random_normal(shape, stddev=0.01, name=name), name=name)
+
+w_h = init_weights([inputsize, n_nodes_hl1], "w_h")
+w_h2 = init_weights([n_nodes_hl1, n_nodes_hl2], "w_h2")
+w_h3 = init_weights([n_nodes_hl2, n_nodes_hl3], "w_h3")
+w_o = init_weights([n_nodes_hl3, n_classes], "w_o")
+b_h = init_weights([n_nodes_hl1],'b_h')
+b_h2 = init_weights([n_nodes_hl2],'b_h2')
+b_h3 = init_weights([n_nodes_hl3],'b_h3')
+b_o = init_weights([n_classes],'b_o') 
+
+x = tf.placeholder('float', [None , inputsize], name='input_data')
+y = tf.placeholder('float', name='output_data')
+p_layer_keep = tf.placeholder("float", name="input_keep")
+p_input_keep = tf.placeholder("float", name="layer_keep")
+
+
 
 def play(prediction):
     with tf.Session() as sess:
         #reload trained tf model
-        saver = tf.train.import_meta_graph('./canabalt_nn_25_5.meta')
-        saver.restore(sess, tf.train.latest_checkpoint('./'))
+        saver = tf.train.import_meta_graph('./logs/nn3_logs/canabalt_nn_100_50_20.meta')
+        saver.restore(sess, tf.train.latest_checkpoint('./logs/nn3_logs'))
         sess.run(tf.global_variables_initializer())
         # initialize required variables
         start = time.time()
@@ -49,8 +73,8 @@ def play(prediction):
             current, previous1, previous2, previous3 = process_image(screen), current, previous1, previous2
             savable = np.append(current,previous3)
             # prepare image for prediction 
-            X = savable.reshape(1,-1)          
-            feed_dict={train_tensorflow.x:X}
+            X = savable.reshape(1,9600)          
+            feed_dict={x:X,p_input_keep: 1, p_layer_keep: 1}
             result = prediction.eval(feed_dict, session=sess)
             # check prediction for chosen action
             if result[0][1] > result[0][0] : 
@@ -88,7 +112,7 @@ def main():
     else:
         run_times = []    
     # set up the tf graph for the model (no variables are loaded yet)     
-    prediction = train_tensorflow.neural_network_model(train_tensorflow.x)
+    prediction = train_tensorflow3.model(x,w_h,w_h2, w_h3 ,w_o, b_h, b_h2, b_h3, b_o, p_input_keep, p_layer_keep)
     # count down before starting to give time to bring the game in focus
     for i in range(4,0,-1):
         print(i)
@@ -111,4 +135,3 @@ def main():
         
 if __name__ == "__main__":
     main()
-        
