@@ -9,13 +9,13 @@ requirements:
   - pandas
   - opencv3
   - pywin32
-  - sklearn
   
-there are 2 neural networks running, one to play the game, and one to detect game over situations. 
-in the current game over detection there is a specific issue where it detects a game over when the player is too high over the landscape so no landscape can be seen. data for this neural network was gathered simply by holding space while game over to mark the data, using the normal data gathering script.
+depending on the version used you also need one of these:
+  - sklearn
+  - tensorflow
+  
 
-the neural network to play the game is built from data of me playing the game, and some extra data gathering done by the script playing the game. currently the neural network plays slightly worse than i do myself, but manages to get reasonably decent scores. 
-please note that i am not great at this game either. If someone better at this game would like to play and record data (at least 100k samples) i would love to see the improvement.
+the neural network to play the game is built from data of me playing the game. the performance at this time is not great. A version using a convoluted neural network in tensorflow is in the works. and there are plans to rebuild this using reinforcement learning instead.
 
 all of this was developed using anaconda.
   
