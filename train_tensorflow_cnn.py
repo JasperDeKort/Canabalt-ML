@@ -55,7 +55,7 @@ def model(input_data, filter1,filter2 , layer_keep, weights1, weights2):
 
 # define filters and weights
 filter1 = init_weights([filtersize,filtersize,inputsize[2], l1_outputchan], "filter_1")
-filter2 = init_weights([filtersize,filtersize,l1_outputchan, l2_outputchan], "filter_1")
+filter2 = init_weights([filtersize,filtersize,l1_outputchan, l2_outputchan], "filter_2")
 weights1 = init_weights([finallayer_in,50],"weights_1")
 weights2 = init_weights([50,n_classes],"weights_2")
 
@@ -72,7 +72,7 @@ with tf.name_scope("cost"):
     loss = tf.losses.softmax_cross_entropy(onehot_labels=y, logits=prediction)
     cost = loss + beta * regularization
     #cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=y))
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.03).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.03,epsilon=0.1).minimize(cost)
     tf.summary.scalar("cost", cost)
     
 with tf.name_scope("accuracy"):
@@ -126,8 +126,11 @@ def train_neural_network(x_train, y_train, x_test, y_test):
         
         if os.path.isfile('./logs/cnn3_logs/checkpoint'):
             print('previous version found. continguing')
-            saver.restore(sess,'./logs/cnn3_logs/canabalt_cnn-300000')
-            i = 300000
+            saver.restore(sess,tf.train.latest_checkpoint('./logs/cnn3_logs/'))
+            #read checkpoint file and cast number at the end to int
+            ckpt = tf.train.get_checkpoint_state("D:\scripts unsync\Canabalt-ML\logs\cnn3_logs\\")
+            i = int(str(ckpt).split('-')[-1][:-2])
+
             
         for epoch in range(hm_epochs):
             epoch_loss = 0
