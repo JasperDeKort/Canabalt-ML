@@ -29,6 +29,7 @@ def rebuild_2d(train_data):
 #    print(new_train_data[0][0].shape)
 #    return new_train_data[3:-3]
 
+#below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
 def merge_previous_images(train_data):
     new_train_data = [[np.stack([train_data[i][0]], 2),train_data[i][1]] for i in range(len(train_data))]
     print(new_train_data[0][0].shape)
