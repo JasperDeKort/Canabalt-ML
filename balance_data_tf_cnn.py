@@ -24,16 +24,16 @@ def rebuild_2d(train_data):
         newdata.append([sample[0].reshape(60,80),sample[1]])        
     return newdata   
 
-#def merge_previous_images(train_data):
-#    new_train_data = [[np.stack([train_data[i][0],train_data[i-3][0]], 2),train_data[i][1]] for i in range(len(train_data))]
-#    print(new_train_data[0][0].shape)
-#    return new_train_data[3:-3]
-
-#below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
 def merge_previous_images(train_data):
-    new_train_data = [[np.stack([train_data[i][0]], 2),train_data[i][1]] for i in range(len(train_data))]
+    new_train_data = [[np.stack([train_data[i][0],train_data[i-3][0]], 2),train_data[i][1]] for i in range(len(train_data))]
     print(new_train_data[0][0].shape)
     return new_train_data[3:-3]
+
+#below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
+#def merge_previous_images(train_data):
+#    new_train_data = [[np.stack([train_data[i][0]], 2),train_data[i][1]] for i in range(len(train_data))]
+#    print(new_train_data[0][0].shape)
+#    return new_train_data[3:-3]
 
 def balance_data(train_data, overwrite=False):
     spaces = []
@@ -53,7 +53,7 @@ def balance_data(train_data, overwrite=False):
     print('spaces: {}'.format(len(spaces)))
     fulldata = spaces + nones[:int(len(spaces))]
     shuffle(fulldata)
-    np.save('training_data_balanced_tf_cnn.npy',fulldata)
+    np.save('training_data_balanced_tf_cnn_2d.npy',fulldata)
     df = pd.DataFrame(fulldata)
     print(Counter(df[1].apply(str)))
     

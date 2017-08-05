@@ -14,19 +14,24 @@ tf.reset_default_graph()
 n_classes = 2
 batch_size = 10000
 
+log_folder = "./logs/cnn5_logs"
 
-inputsize = [60, 80, 1]
+inputsize = [60, 80, 2]
+
+# tweakable parameters
+l2beta = 0.01
+epsilon = 0.5
+learning_rate = 0.1
 
 input_keep = 0.8
-layer_keep = 0.5
-beta = 0.003
+layer_keep = 0.4
 filtersize= 5
 l1_outputchan = 10
 l2_outputchan = 10
 finallayer_in = 12000
 
 def init_weights(shape, name):
-    return tf.Variable(tf.random_normal(shape, stddev=0.01), name=name)
+    return tf.Variable(tf.truncated_normal(shape, stddev=0.01, name=name), name=name)
 
 def model(input_data, filter1,filter2 , layer_keep, weights1, weights2):
     # Add layer name scopes for better graph visualization
@@ -59,8 +64,11 @@ filter2 = init_weights([filtersize,filtersize,l1_outputchan, l2_outputchan], "fi
 weights1 = init_weights([finallayer_in,50],"weights_1")
 weights2 = init_weights([50,n_classes],"weights_2")
 
+tf.summary.histogram("weights_1", weights1)
+tf.summary.histogram("weights_2", weights2)
+
 # dimensions of input and output
-x = tf.placeholder('float', [None ,60,80,1], name='input_data')
+x = tf.placeholder('float', [None ,60,80,2], name='input_data')
 y = tf.placeholder('float', [None, 2], name='output_data')
 layer_keep_holder = tf.placeholder("float", name="input_keep")
 
@@ -70,9 +78,9 @@ with tf.name_scope("cost"):
     # optimize, learning_rate = 0.001
     regularization = tf.nn.l2_loss(filter1)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=y, logits=prediction)
-    cost = loss + beta * regularization
+    cost = loss + l2beta * regularization
     #cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=y))
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.03,epsilon=0.1).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate,epsilon=epsilon).minimize(cost)
     tf.summary.scalar("cost", cost)
     
 with tf.name_scope("accuracy"):
@@ -95,9 +103,10 @@ with tf.variable_scope('visualization'):
 
     # to tf.image_summary format [batch_size, height, width, channels]
     kernel_transposed = tf.transpose (filter1, [3, 0, 1, 2])
+    kernel_flattened = tf.reshape(kernel_transposed,[-1,5,5,1])
 
     # this will display random 3 filters from the 64 in conv1
-    tf.summary.image('conv1/filters', kernel_transposed, max_outputs=20)
+    tf.summary.image('conv1/filters', kernel_flattened, max_outputs=20)
 
 with tf.variable_scope('output_values'):
     class_max = tf.reduce_max(prediction, reduction_indices=[0])
@@ -121,14 +130,14 @@ def train_neural_network(x_train, y_train, x_test, y_test):
     print('starting training')
     with tf.Session() as sess:   
         sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter("./logs/cnn3_logs", sess.graph) # for 1.0
+        writer = tf.summary.FileWriter(log_folder, sess.graph) # for 1.0
         merged = tf.summary.merge_all()
         
-        if os.path.isfile('./logs/cnn3_logs/checkpoint'):
+        if os.path.isfile( log_folder + '/checkpoint'):
             print('previous version found. continguing')
-            saver.restore(sess,tf.train.latest_checkpoint('./logs/cnn3_logs/'))
+            saver.restore(sess,tf.train.latest_checkpoint(log_folder))
             #read checkpoint file and cast number at the end to int
-            ckpt = tf.train.get_checkpoint_state("D:\scripts unsync\Canabalt-ML\logs\cnn3_logs\\")
+            ckpt = tf.train.get_checkpoint_state(log_folder)
             i = int(str(ckpt).split('-')[-1][:-2])
 
             
@@ -150,16 +159,16 @@ def train_neural_network(x_train, y_train, x_test, y_test):
                 if start % 10000 == 0:
                     print('current accuracy: {} at step {}'.format(acc, end))
             summary, acc, conf = sess.run([merged, acc_op, conf_mat], feed_dict={x: x_test, y: y_test, layer_keep_holder: 1})
-            writer.add_summary(summary,i)
+            #writer.add_summary(summary,i)
             print('Epoch ', epoch + 1, ' completed out of ', hm_epochs, ' ,epoch loss: ', epoch_loss)
             print(conf)
-            saver.save(sess, './logs/cnn3_logs/canabalt_cnn', global_step=i)
+            saver.save(sess, log_folder + '/canabalt_cnn', global_step=i)
         correct = tf.equal(tf.argmax(prediction,1), tf.argmax(y,1))
         accuracy = tf.reduce_mean(tf.cast(correct,'float'))
         print('Final accuracy: ', accuracy.eval({x: x_test, 
                                                  y: y_test,
                                                  layer_keep_holder: 1}) )
-        saver.save(sess, './logs/cnn3_logs/canabalt_cnn', global_step=i)
+        saver.save(sess, log_folder + '/canabalt_cnn', global_step=i)
         writer.flush()
         writer.close()
 
@@ -177,7 +186,7 @@ def split_data(data, test_size=0.1):
     return x_train, y_train, x_test, y_test
 
 def load_and_split_data():
-    data = np.load('training_data_balanced_tf_cnn.npy')
+    data = np.load('training_data_balanced_tf_cnn_2d.npy')
     print('data loaded')
     return split_data(data)
   
