@@ -26,7 +26,7 @@ def rebuild_2d(train_data):
 
 def merge_previous_images(train_data):
     new_train_data = [[np.stack([train_data[i][0],train_data[i-3][0]], 2),train_data[i][1]] for i in range(len(train_data))]
-    print(new_train_data[0][0].shape)
+    #print(new_train_data[0][0].shape)
     return new_train_data[3:-3]
 
 ##below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
@@ -50,16 +50,12 @@ def balance_data(train_data, overwrite=False):
         else:
             print('error value at {}'.format(data.index))
     
-    print('spaces: {}'.format(len(spaces)))
+    #print('spaces: {}'.format(len(spaces)))
     fulldata = spaces + nones[:int(len(spaces))]
     shuffle(fulldata)
-    np.save('training_data_balanced_tf_cnn_2d.npy',fulldata)
-#    df = pd.DataFrame(fulldata)
-#    print(Counter(df[1].apply(str)))
+    
     
     return fulldata
-
-
 
 def collect_data():
     logdir = "./training_data/"
@@ -69,6 +65,8 @@ def collect_data():
     for i in range(runnumber):
         train_data = np.load(logdir + 'rundata{}.npy'.format(i))
         data += balance_data(train_data)
+        if i % 10 == 0:
+            print('{} runs processed'.format(i))
     shuffle(data)
     df = pd.DataFrame(data)
     print(Counter(df[1].apply(str)))
@@ -76,7 +74,7 @@ def collect_data():
 
 def main():
     data = collect_data()
-    np.save("balanced_data_test.npy", data)
+    np.save('training_data_balanced_tf_cnn_2d.npy',data)
 #    train_data = np.load('training_data.npy')
 #    print('data loaded')
 #    train_data = rebuild_2d(train_data)
