@@ -15,6 +15,8 @@ from process_image import process_image
 import pickle
 import keypress
 
+
+
 def keys_to_output(keys):
     if ' ' in keys:
         return 1
@@ -71,27 +73,32 @@ def play():
     return train_data[:-250], run_time
 
 def main():
-    file_name = 'training_data.npy'
-    
-    if os.path.isfile(file_name):
-        print('file exists. loading data')
-        training_data = list(np.load(file_name))
+    #file_name = 'training_data.npy'
+    logdir = "./training_data/"
+    runtype = "orig"
+    if os.path.isfile(logdir + "runnumber.txt"):
+        with open(logdir+ "runnumber.txt", 'r') as f:
+            runnumber = int(f.read())
+        runinfo = np.load(logdir + "runinfo.npy")
     else:
-        print('file does not exist. creating new file')
-        training_data = []
+        runinfo = []
+        runnumber = 1
          
     for i in range(3,0,-1):
         print(i)
         time.sleep(1)    
-    
-    startdata = len(training_data)
-    
+     
     while True: 
         run_data, run_time = play()
         
         # disregard any short runs
         if run_time > 11:
-            training_data += run_data  
+            runinfo += [[runnumber, run_time, len(run_data), runtype]]
+            np.save(logdir + "runinfo.npy", runinfo)            
+            np.save(logdir + "rundata{}.npy".format(runnumber), run_data)
+            runnumber+= 1
+            with open(logdir + "runnumber.txt" , "w") as f:
+                    f.write(str(runnumber)) 
         else:
             print('run too short, not saving')
         
@@ -101,18 +108,11 @@ def main():
             time.sleep(1)
             keys = key_check()
             if 'Q' in keys:
-                print('saving before exit')
-                np.save(file_name,training_data)
-                print('saving done')
+                with open(logdir + "runnumber.txt" , "w") as f:
+                    f.write(str(runnumber))
+                print('shutting down')
                 break
-        
-        # only save data once every ... data points, 
-        if len(training_data) > startdata + 20000:
-            print('checkpoint reached, saving data')
-            np.save(file_name,training_data)
-            print('saved a total of {} samples'.format(len(training_data)))
-            startdata = len(training_data)
-        
+        #sleep for half a second before restarting the game
         time.sleep(0.5)
       
 

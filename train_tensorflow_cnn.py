@@ -14,7 +14,7 @@ tf.reset_default_graph()
 n_classes = 2
 batch_size = 100
 
-log_folder = "./logs/cnngpu4_logs"
+log_folder = "./logs/cnngpu5_logs"
 
 inputsize = [60, 80, 2]
 
