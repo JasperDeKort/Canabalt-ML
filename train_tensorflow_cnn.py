@@ -14,7 +14,7 @@ tf.reset_default_graph()
 n_classes = 2
 batch_size = 100
 
-log_folder = "./logs/cnngpu2_logs"
+log_folder = "./logs/cnngpu4_logs"
 
 inputsize = [60, 80, 2]
 
@@ -60,9 +60,6 @@ filter1 = init_weights([filtersize,filtersize,inputsize[2], l1_outputchan], "fil
 filter2 = init_weights([filtersize,filtersize,l1_outputchan, l2_outputchan], "filter_2")
 weights1 = init_weights([finallayer_in,denselayernodes],"weights_1")
 weights2 = init_weights([denselayernodes,n_classes],"weights_2")
-
-tf.summary.histogram("weights_1", weights1)
-tf.summary.histogram("weights_2", weights2)
 
 # dimensions of input and output
 x = tf.placeholder('float', [None ,60,80,2], name='input_data')
@@ -145,7 +142,7 @@ def train_neural_network(x_train, y_train, x_test, y_test,x_img):
     print('test set size: {}'.format(len(y_test)))
     print('train set size: {}'.format(len(y_train)))
     # number of cycles of feed forward and back propagation
-    hm_epochs = 20
+    hm_epochs = 40
     saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.5, )
     i = 0
     print('starting training')
@@ -155,7 +152,8 @@ def train_neural_network(x_train, y_train, x_test, y_test,x_img):
         # generate 2 summary merges. one for use with test data, one for use with train data.
         # data uninfluenced by test or train data is added to the train summary.
         trainmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='train') + \
-                                      tf.get_collection(tf.GraphKeys.SUMMARIES, scope='visualization_filter1'))
+                                      tf.get_collection(tf.GraphKeys.SUMMARIES, scope='visualization_filter1') + \
+                                      tf.get_collection(tf.GraphKeys.SUMMARIES, scope='weights'))
         testmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='test'))
         imagepassmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f1pass') + \
                                           tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f2pass'))
@@ -239,7 +237,6 @@ def pick_image_for_class(x_test,y_test, classes):
 def main():
     x_train, y_train, x_test, y_test = load_and_split_data()   
     x_img, y_img = pick_image_for_class(x_test,y_test,n_classes)
-#    x_img = x_test
     train_neural_network(x_train, y_train, x_test, y_test,x_img)
      
 

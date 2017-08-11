@@ -107,7 +107,7 @@ def main():
                 break
         
         # only save data once every ... data points, 
-        if len(training_data) > startdata + 10000:
+        if len(training_data) > startdata + 20000:
             print('checkpoint reached, saving data')
             np.save(file_name,training_data)
             print('saved a total of {} samples'.format(len(training_data)))
