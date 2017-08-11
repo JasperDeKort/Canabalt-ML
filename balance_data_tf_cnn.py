@@ -13,7 +13,7 @@ Created on Tue Jun 27 11:40:25 2017
 """
 
 import numpy as np
-#import pandas as pd
+import pandas as pd
 from collections import Counter
 from random import shuffle
 #import cv2
@@ -59,11 +59,28 @@ def balance_data(train_data, overwrite=False):
     
     return fulldata
 
+
+
+def collect_data():
+    logdir = "./training_data/"
+    data = []
+    with open(logdir+ "runnumber.txt", 'r') as f:
+        runnumber = int(f.read())
+    for i in range(runnumber):
+        train_data = np.load(logdir + 'rundata{}.npy'.format(i))
+        data += balance_data(train_data)
+    shuffle(data)
+    df = pd.DataFrame(data)
+    print(Counter(df[1].apply(str)))
+    return data
+
 def main():
-    train_data = np.load('training_data.npy')
-    print('data loaded')
-    train_data = rebuild_2d(train_data)
-    balance_data(train_data)
+    data = collect_data()
+    np.save("balanced_data_test.npy", data)
+#    train_data = np.load('training_data.npy')
+#    print('data loaded')
+#    train_data = rebuild_2d(train_data)
+#    balance_data(train_data)
     
 if __name__ == "__main__":
     main()
