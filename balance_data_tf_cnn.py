@@ -13,10 +13,10 @@ Created on Tue Jun 27 11:40:25 2017
 """
 
 import numpy as np
-import pandas as pd
+#import pandas as pd
 from collections import Counter
 from random import shuffle
-import cv2
+#import cv2
 
 def rebuild_2d(train_data):
     newdata = []
@@ -29,7 +29,7 @@ def merge_previous_images(train_data):
     print(new_train_data[0][0].shape)
     return new_train_data[3:-3]
 
-#below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
+##below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
 #def merge_previous_images(train_data):
 #    new_train_data = [[np.stack([train_data[i][0]], 2),train_data[i][1]] for i in range(len(train_data))]
 #    print(new_train_data[0][0].shape)
@@ -54,8 +54,8 @@ def balance_data(train_data, overwrite=False):
     fulldata = spaces + nones[:int(len(spaces))]
     shuffle(fulldata)
     np.save('training_data_balanced_tf_cnn_2d.npy',fulldata)
-    df = pd.DataFrame(fulldata)
-    print(Counter(df[1].apply(str)))
+#    df = pd.DataFrame(fulldata)
+#    print(Counter(df[1].apply(str)))
     
     return fulldata
 
