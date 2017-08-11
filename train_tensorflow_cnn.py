@@ -34,6 +34,7 @@ finallayer_in = 15*20*l2_outputchan
 denselayernodes = 256
 
 def init_weights(shape, name):
+    # stddev gives best performance around 0.01. values of 0.4+ stop convergance
     return tf.Variable(tf.truncated_normal(shape, stddev=0.01, name=name), name=name)
 
 def model(input_data, filter1,filter2 , layer_keep, weights1, weights2):
