@@ -14,7 +14,7 @@ tf.reset_default_graph()
 n_classes = 2
 batch_size = 100
 
-log_folder = "./logs/cnngpu5_logs"
+log_folder = "./logs/cnngpu6_logs"
 
 inputsize = [60, 80, 2]
 
@@ -142,7 +142,7 @@ def train_neural_network(x_train, y_train, x_test, y_test,x_img):
     print('test set size: {}'.format(len(y_test)))
     print('train set size: {}'.format(len(y_train)))
     # number of cycles of feed forward and back propagation
-    hm_epochs = 40
+    hm_epochs = 30
     saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.5, )
     i = 0
     print('starting training')

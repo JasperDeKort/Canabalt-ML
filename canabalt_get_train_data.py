@@ -14,6 +14,7 @@ import os
 from process_image import process_image
 import pickle
 import keypress
+from findwinrect import find_canabalt
 
 
 
@@ -23,7 +24,7 @@ def keys_to_output(keys):
     else:
         return 0
 
-def play():
+def play(screenloc):
     
     #initialize variables
     start = time.time()
@@ -42,7 +43,7 @@ def play():
     keypress.ReleaseKey(0x1C)
     
     while not dead:
-        screen = grab_screen(region =(0,40,800,640))
+        screen = grab_screen(region = screenloc)
 #        score = screen[5:35,685:765]
 #        score = cv2.threshold(score, 230,255,cv2.THRESH_BINARY)[1]
 #        score1= score[:,20:40]
@@ -61,10 +62,10 @@ def play():
             consecutivedead += 1
         else:
             consecutivedead = 0        
-#        cv2.imshow('processed view', savable)
-#        if cv2.waitKey(25) & 0xFF == ord('q'):
-#            cv2.destroyAllWindows()
-#            break            
+        cv2.imshow('processed view', savable)
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            cv2.destroyAllWindows()
+            break            
     run_time = time.time()-start        
     print('run took {} seconds, for {} screens, for {} seconds per screen'.format(run_time,
                                                                                   len(train_data),
@@ -75,7 +76,7 @@ def play():
 def main():
     #file_name = 'training_data.npy'
     logdir = "./training_data/"
-    runtype = "orig"
+    runtype = "def"
     if os.path.isfile(logdir + "runnumber.txt"):
         with open(logdir+ "runnumber.txt", 'r') as f:
             runnumber = int(f.read())
@@ -83,17 +84,19 @@ def main():
     else:
         runinfo = []
         runnumber = 1
+        
+    screenloc = find_canabalt()
          
     for i in range(3,0,-1):
         print(i)
         time.sleep(1)    
      
     while True: 
-        run_data, run_time = play()
+        run_data, run_time = play(screenloc)
         
         # disregard any short runs
         if run_time > 11:
-            runinfo += [[runnumber, run_time, len(run_data), runtype]]
+            runinfo = np.append(runinfo, [[runnumber, run_time, len(run_data), runtype]],0)
             np.save(logdir + "runinfo.npy", runinfo)            
             np.save(logdir + "rundata{}.npy".format(runnumber), run_data)
             runnumber+= 1
