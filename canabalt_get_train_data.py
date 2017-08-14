@@ -24,12 +24,11 @@ def keys_to_output(keys):
     else:
         return 0
 
-def play(screenloc):
+def play(screenloc,death):
     
     #initialize variables
     start = time.time()
     dead = False
-    consecutivedead = 0
     train_data = []
     savable = np.ones(4800)
     previous1 = np.zeros(4800)
@@ -41,12 +40,12 @@ def play(screenloc):
     keypress.PressKey(0x1C)
     time.sleep(0.1)
     keypress.ReleaseKey(0x1C)
+    time.sleep(0.2)
     
     while not dead:
         screen = grab_screen(region = screenloc)
-#        score = screen[5:35,685:765]
-#        score = cv2.threshold(score, 230,255,cv2.THRESH_BINARY)[1]
-#        score1= score[:,20:40]
+        if np.array_equal(screen[:][250:280],death):
+            dead = True
         savable, previous1, previous2, previous3 = process_image(screen), savable, previous1, previous2
         
         #savable = process_image(screen)        
@@ -55,17 +54,11 @@ def play(screenloc):
         keys = key_check()
         output = keys_to_output(keys)
         train_data.append([savable, output])                               
-        if np.array_equal(savable, previous3):
-            if consecutivedead > 10:
-                print('you are dead')
-                dead = True
-            consecutivedead += 1
-        else:
-            consecutivedead = 0        
-        cv2.imshow('processed view', savable)
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-            cv2.destroyAllWindows()
-            break            
+      
+#        cv2.imshow('processed view', savable)
+#        if cv2.waitKey(25) & 0xFF == ord('q'):
+#            cv2.destroyAllWindows()
+#            break            
     run_time = time.time()-start        
     print('run took {} seconds, for {} screens, for {} seconds per screen'.format(run_time,
                                                                                   len(train_data),
@@ -76,7 +69,7 @@ def play(screenloc):
 def main():
     #file_name = 'training_data.npy'
     logdir = "./training_data/"
-    runtype = "def"
+    runtype = "orig"
     if os.path.isfile(logdir + "runnumber.txt"):
         with open(logdir+ "runnumber.txt", 'r') as f:
             runnumber = int(f.read())
@@ -86,15 +79,16 @@ def main():
         runnumber = 1
         
     screenloc = find_canabalt()
+    death = np.load("death250to280.npy")
          
     for i in range(3,0,-1):
         print(i)
         time.sleep(1)    
      
     while True: 
-        run_data, run_time = play(screenloc)
+        run_data, run_time = play(screenloc,death)
         
-        # disregard any short runs
+#        # disregard any short runs
         if run_time > 11:
             runinfo = np.append(runinfo, [[runnumber, run_time, len(run_data), runtype]],0)
             np.save(logdir + "runinfo.npy", runinfo)            
