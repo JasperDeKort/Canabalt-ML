@@ -11,7 +11,6 @@ import cv2
 import time
 import os
 import tensorflow as tf
-import train_tensorflow_cnn
 
 #import local files
 from getkeys import key_check
@@ -20,42 +19,9 @@ from process_image import process_image
 from findwinrect import find_canabalt
 
 tf.reset_default_graph()
-## initialize variables from train_tensorflow_cnn so the model can be loaded.
-n_classes = 2
-batch_size = 100
 log_folder = "./logs/cnngpu6_logs"
-inputsize = [60, 80, 2]
 
-# tweakable parameters
-l2beta = 0.03
-epsilon = 1
-learning_rate = 0.01
-
-testsize = 1000
-
-input_keep = 0.8
-layer_keep = 0.4
-filtersize= 5
-l1_outputchan = 16
-l2_outputchan = 16
-finallayer_in = 15*20*l2_outputchan
-denselayernodes = 256
-
-def init_weights(shape, name):
-    return tf.Variable(tf.random_normal(shape, stddev=0.01, name=name), name=name)
-
-# define filters and weights
-filter1 = init_weights([filtersize,filtersize,inputsize[2], l1_outputchan], "filter_1")
-filter2 = init_weights([filtersize,filtersize,l1_outputchan, l2_outputchan], "filter_2")
-weights1 = init_weights([finallayer_in,denselayernodes],"weights_1")
-weights2 = init_weights([denselayernodes,n_classes],"weights_2")
-
-# dimensions of input and output
-x = tf.placeholder('float', [None ,60,80,2], name='input_data')
-y = tf.placeholder('float', [None, 2], name='output_data')
-layer_keep_holder = tf.placeholder("float", name="input_keep")
-
-def play(sess,prediction,screenloc,death):
+def play(sess,screenloc,death):
     # initialize required variables and reset pressed buttons
     start = time.time()
     dead = False
@@ -66,6 +32,11 @@ def play(sess,prediction,screenloc,death):
     previous1 = np.zeros((60,80))
     previous2 = np.zeros((60,80))
     previous3 = np.zeros((60,80))
+    #restore the required placeholders for the feed dict
+    graph = tf.get_default_graph()
+    prediction = graph.get_tensor_by_name("hidden_4_dense/Relu:0")
+    x = graph.get_tensor_by_name("input_data:0")
+    layer_keep_holder =  graph.get_tensor_by_name("input_keep:0")
     # press enter to start the game
     print('starting to play')
     keypress.PressKey(0x1C)
@@ -104,7 +75,7 @@ def play(sess,prediction,screenloc,death):
     
 def main(): 
     # set up the tf graph for the model (no variables are loaded yet)     
-    prediction = train_tensorflow_cnn.model(x, filter1,filter2 , layer_keep_holder, weights1, weights2)
+    #prediction = train_tensorflow_cnn.model(x, filter1,filter2 , layer_keep_holder, weights1, weights2)
     screenloc = find_canabalt()
     death = np.load("death250to280.npy")
     # count down before starting to give time to bring the game in focus
@@ -115,10 +86,9 @@ def main():
         #reload trained tf model
         saver = tf.train.import_meta_graph(log_folder + '/canabalt_cnn-2361000.meta')
         saver.restore(sess, tf.train.latest_checkpoint(log_folder))
-        #sess.run(tf.global_variables_initializer())
         while True: 
             #start to play
-            run_time = play(sess,prediction,screenloc,death)
+            run_time = play(sess,screenloc,death)
     
             # check if q button is pressed, if pressed -> shut down
             keys = key_check()
