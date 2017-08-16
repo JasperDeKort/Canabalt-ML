@@ -35,8 +35,10 @@ uses the sklearn MLPclassifier.
   
   
 ## todo list
+- gather more training data for rare occurances in game (inside hallways, dropping parts, etc)
+- build reinforcement learning version
+
+## done
 - detect game screen coordinates on startup
 - improve death detection with smaller and shorter compare to saved death screen
 - modify saving and data preprocessing to save and load 1 file per run, preventing large file size of training data
-- gather more training data for rare occurances in game (inside hallways, dropping parts, etc)
-- build reinforcement learning version
