@@ -69,7 +69,7 @@ def play(screenloc,death):
 def main():
     #file_name = 'training_data.npy'
     logdir = "./training_data/"
-    runtype = "orig"
+    runtype = "def"
     if os.path.isfile(logdir + "runnumber.txt"):
         with open(logdir+ "runnumber.txt", 'r') as f:
             runnumber = int(f.read())

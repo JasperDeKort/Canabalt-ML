@@ -37,7 +37,7 @@ input_keep = 0.8
 layer_keep = 0.4
 filtersize= 5
 l1_outputchan = 16
-l2_outputchan = 20
+l2_outputchan = 16
 finallayer_in = 15*20*l2_outputchan
 denselayernodes = 256
 
@@ -115,7 +115,7 @@ def main():
         #reload trained tf model
         saver = tf.train.import_meta_graph(log_folder + '/canabalt_cnn-2361000.meta')
         saver.restore(sess, tf.train.latest_checkpoint(log_folder))
-        sess.run(tf.global_variables_initializer())
+        #sess.run(tf.global_variables_initializer())
         while True: 
             #start to play
             run_time = play(sess,prediction,screenloc,death)
