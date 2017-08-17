@@ -22,7 +22,7 @@ n_classes = 2
 base_folder = "./logs/cnngpu_logs"
 folders = os.listdir(base_folder)
 
-results = {}
+results = []
 
 x_train, y_train, x_test, y_test = ttc.load_and_split_data()
 print("testing on {} values in x and y test".format(len(y_test)))
@@ -39,7 +39,6 @@ for folder in folders:
         with tf.Session() as sess:
             saver = tf.train.import_meta_graph(log_folder + '/canabalt_cnn-1263000.meta')
             saver.restore(sess, tf.train.latest_checkpoint(log_folder))
-            #sess.run(tf.global_variables_initializer())
             graph = tf.get_default_graph()
 #            for op in tf.get_default_graph().get_operations():
 #                if "confusion_matrix" in str(op.values()):
@@ -56,6 +55,9 @@ for folder in folders:
             accuracy, loss , confusion = sess.run([acc_op, cost, conf_mat],feed_dict)
             print("{}    {}     {}".format(folder, accuracy, loss))
             print(confusion)
-            results[folder] = [accuracy, loss, confusion]
+            results += [[folder, accuracy, loss, confusion]]
+
+results.sort(key=lambda x: x[1],reverse=True)
+print(results[0:2][0:2])
             
         

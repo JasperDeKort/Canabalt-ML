@@ -24,10 +24,19 @@ def rebuild_2d(train_data):
         newdata.append([sample[0].reshape(60,80),sample[1]])        
     return newdata   
 
+## below version is for use with 2 past image layers
 def merge_previous_images(train_data):
     new_train_data = [[np.stack([train_data[i][0],train_data[i-3][0]], 2),train_data[i][1]] for i in range(len(train_data))]
     #print(new_train_data[0][0].shape)
     return new_train_data[3:-3]
+
+
+
+## below version is for use with 4 past image layers
+#def merge_previous_images(train_data):
+#    new_train_data = [[np.stack([train_data[i][0],train_data[i-1][0],train_data[i-2][0],train_data[i-3][0]], 2),train_data[i][1]] for i in range(len(train_data))]
+#    #print(new_train_data[0][0].shape)
+#    return new_train_data[3:-3]
 
 ##below version only reshapes the data to 60 * 80 * 1, use above version for dual layer.
 #def merge_previous_images(train_data):
@@ -63,10 +72,11 @@ def collect_data():
     with open(logdir+ "runnumber.txt", 'r') as f:
         runnumber = int(f.read())
     for i in range(runnumber):
-        train_data = np.load(logdir + 'rundata{}.npy'.format(i))
-        data += balance_data(train_data)
         if i % 10 == 0:
             print('{} runs processed'.format(i))
+        train_data = np.load(logdir + 'rundata{}.npy'.format(i))
+        data += balance_data(train_data)
+
     shuffle(data)
     df = pd.DataFrame(data)
     print(Counter(df[1].apply(str)))
@@ -74,7 +84,7 @@ def collect_data():
 
 def main():
     data = collect_data()
-    np.save('training_data_balanced_tf_cnn_2d.npy',data)
+    np.save('training_data_balanced_tf_cnn_4l.npy',data)
 #    train_data = np.load('training_data.npy')
 #    print('data loaded')
 #    train_data = rebuild_2d(train_data)

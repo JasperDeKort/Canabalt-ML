@@ -8,12 +8,13 @@ Created on Mon Jun 26 17:29:02 2017
 import numpy as np
 import cv2
 import time
-from grabscreen import grab_screen
-from getkeys import key_check
 import os
-from process_image import process_image
 import pickle
 import keypress
+
+from process_image import process_image
+from grabscreen import grab_screen
+from getkeys import key_check
 from findwinrect import find_canabalt
 
 

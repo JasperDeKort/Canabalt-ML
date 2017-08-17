@@ -64,8 +64,8 @@ def create_graph(epsilon, beta1, beta2, learning_rate,filtersize, l1_outputchan,
     weights2 = init_weights([denselayernodes,n_classes],"weights_2")
     
     # dimensions of input and output
-    x = tf.placeholder('float', [None ,60,80,2], name='input_data')
-    y = tf.placeholder('float', [None, 2], name='output_data')
+    x = tf.placeholder('float', [None] + inputsize, name='input_data')
+    y = tf.placeholder('float', [None] + [n_classes], name='output_data')
     layer_keep_holder = tf.placeholder("float", name="input_keep")
     
     prediction = model(x, filter1,filter2 , layer_keep_holder, weights1, weights2)
@@ -238,7 +238,7 @@ def split_data(data, testsize):
     return x_train, y_train, x_test, y_test
 
 def load_and_split_data():
-    data = np.load('training_data_balanced_tf_cnn_2d.npy')
+    data = np.load('training_data_balanced_tf_cnn_4l.npy')
     print('data loaded')
     return split_data(data,testsize)
   
@@ -268,10 +268,7 @@ def build_and_train(epsilon,beta1,beta2,learning_rate,log_folder,
                                     cost,x, y, layer_keep_holder,log_folder)
     return accuracy    
 
-def main():
-    x_train, y_train, x_test, y_test = load_and_split_data()   
-    x_img, y_img = pick_image_for_class(x_test,y_test,n_classes)
-    
+def gridsearch(log_folder,x_train, y_train, x_test,y_test,x_img):
     epsilons = [0.3, 1, 3]
     learning_rates = [0.003, 0.01]
     beta1s = [0.8, 0.9, 0.95]
@@ -299,6 +296,24 @@ def main():
     
     print(results)
     return results
+
+def main():
+    x_train, y_train, x_test, y_test = load_and_split_data()   
+    x_img, y_img = pick_image_for_class(x_test,y_test,n_classes)
+    
+    # set model parameters.
+    # best model params found with gridsearch so far:
+    # ep:0.3, lr: 0.003, b1: 0.9, b2: 0.95
+    epsilon = 0.3
+    learning_rate = 0.003
+    beta1 = 0.9
+    beta2 = 0.95
+    log_folder = "./logs/cnnopparam_logs"
+    
+    accuracy = build_and_train(epsilon,beta1,beta2,learning_rate,log_folder,
+                               x_train, y_train, x_test,y_test,x_img)    
+    print(accuracy)
+    return accuracy
      
 
 if __name__ == "__main__":
