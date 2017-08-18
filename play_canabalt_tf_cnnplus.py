@@ -20,6 +20,7 @@ from findwinrect import find_canabalt
 
 tf.reset_default_graph()
 log_folder = "./logs/cnnplus_logs"
+run_time_collect = []
 
 def play(sess,screenloc,death):
     # initialize required variables and reset pressed buttons
@@ -83,6 +84,7 @@ def main():
     #prediction = train_tensorflow_cnn.model(x, filter1,filter2 , layer_keep_holder, weights1, weights2)
     screenloc = find_canabalt()
     death = np.load("death250to280.npy")
+    
     # count down before starting to give time to bring the game in focus
     for i in range(4,0,-1):
         print(i)
@@ -94,7 +96,7 @@ def main():
         while True: 
             #start to play
             run_time = play(sess,screenloc,death)
-    
+            
             # check if q button is pressed, if pressed -> shut down
             keys = key_check()
             if 'Q' in keys:
