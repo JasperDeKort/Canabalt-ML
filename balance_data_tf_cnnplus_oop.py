@@ -38,8 +38,8 @@ class Convnet():
         
         ## placeholders for input and output
         self.x = tf.placeholder('float', [None] + self.inputsize, name='input_data')
-        self.x2 = tf.placeholder('float', [None] + [self.plusfeat] , name='input_data2')
-        self.y = tf.placeholder('float', [None] + [self.n_classes], name='output_data')
+        self.x2 = tf.placeholder('float', [None, self.plusfeat] , name='input_data2')
+        self.y = tf.placeholder('float', [None, self.n_classes], name='output_data')
         
         ## filters and weights
         self.filter1 = init_weights([self.filtersize,self.filtersize,self.inputsize[2], self.l1_outputchan], "filter_1")
@@ -87,7 +87,7 @@ class Convnet():
             tf.summary.scalar("false_positive", self.conf_mat[0][1])
             tf.summary.scalar("cost", self.cost)
         
-            # generate summaries in train name scope to collect and merge easily        
+        ## generate summaries in train name scope to collect and merge easily        
         with tf.name_scope("train"):
             tf.summary.scalar("cost", self.cost)
             tf.summary.scalar("accuracy", self.acc_op)
@@ -96,7 +96,7 @@ class Convnet():
             tf.summary.histogram("weights_1", self.weights1)
             tf.summary.histogram("weights_2", self.weights2)
         
-        # generate images of the filters for human viewing
+        ## generate images of the filters for human viewing
         with tf.variable_scope('visualization_filter1'):
             # to tf.image_summary format [batch_size, height, width, channels]
             self.kernel_transposed = tf.transpose (self.filter1, [3, 0, 1, 2])
@@ -107,7 +107,7 @@ class Convnet():
             tf.summary.image('conv1/filters', self.kernel_flattened, 
                              max_outputs=self.l1_outputchan*self.inputsize[2])
         
-        # generate images from filter pass through results. 1 for each class.        
+        ## generate images from filter pass through results. 1 for each class.        
         with tf.name_scope("f1pass"):
             self.imageconvlist = []
             self.imageconv1 = tf.nn.relu(tf.nn.conv2d(self.x, self.filter1,strides=[1,1,1,1],padding="SAME"))
@@ -122,6 +122,13 @@ class Convnet():
             for i in range(self.n_classes):
                 self.imageconvlist2.append(tf.transpose(tf.reshape(self.imageconv2[i],[1,30,40,self.l2_outputchan]), [3,1,2,0]))
                 tf.summary.image('number_{}'.format(i), self.imageconvlist2[i],max_outputs = self.l2_outputchan)
+                
+        self.trainmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='train') + \
+                                      tf.get_collection(tf.GraphKeys.SUMMARIES, scope='visualization_filter1') + \
+                                      tf.get_collection(tf.GraphKeys.SUMMARIES, scope='weights'))
+        self.testmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='test'))
+        self.imagepassmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f1pass') + \
+                                          tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f2pass'))
         
         ## add desired tensors to collection for easy later restoring       
         tf.add_to_collection("prediction", self.output)
@@ -152,23 +159,79 @@ class Convnet():
             self.writer = tf.summary.FileWriter(self.logdir, sess.graph)
                 
     def train_iter(self, sess, x_batch, x2_batch, y_batch):
-        feed_dict = {self.x: x_batch, self.x2: x2_batch, self.y: y_batch}
+        feed_dict = {self.x: x_batch, 
+                     self.x2: x2_batch, 
+                     self.y: y_batch}
         _, cost = sess.run([self.optimizer, self.cost], feed_dict)
         self.i += len(x_batch)
         return cost   
     
     def predict(self, sess, x, x2):
-        feed_dict = {self.x:x, self.x2:x2}
+        feed_dict = {self.x: x, 
+                     self.x2: x2}
         prediction = sess.run(self.output, feed_dict = feed_dict)
         return prediction
     
     def accuracy(self, sess, x, x2, y):
-        feed_dict = {self.x: x, self.x2: x2, self.y: y}
+        feed_dict = {self.x: x,
+                     self.x2: x2, 
+                     self.y: y}
         accuracy = sess.run(self.acc_op, feed_dict = feed_dict)
         return accuracy
+    
+    def testsum(self, sess, x, x2, y):
+        feed_dict = {self.x: x, 
+                     self.x2: x2, 
+                     self.y: y}
+        summary = sess.run(self.testmerge, feed_dict=feed_dict)
+        self.writer.add_summary(summary,self.i)
+        
+    def trainsum(self, sess, x, x2, y):
+        feed_dict = {self.x: x[:self.testsize], 
+                     self.x2: x2[:self.testsize], 
+                     self.y: y[:self.testsize]}
+        summary = sess.run(self.trainmerge, feed_dict=feed_dict)
+        self.writer.add_summary(summary,self.i)
+    
+    def imgsum(self, sess, x_img):
+        feed_dict = {self.x: x_img}
+        summary = sess.run(self.imagepassmerge, feed_dict=feed_dict)
+        self.writer.add_summary(summary,self.i)        
         
     def save(self, sess):
-        self.saver.save(sess, self.logdir + '/' + self.name, global_step=self.i)
+        filename = self.logdir + '/' + self.name
+        self.saver.save(sess, filename, global_step=self.i)
+        self.writer.flush()
+        self.writer.close()
+        
+    def train(self, x_train, x2_train, y_train, x_test, x2_test, y_test, x_img, epochs):
+        print("starting training")
+        with tf.Session() as sess:
+            self.initialize(sess)
+            for epoch in range(epochs):
+                epoch_loss = 0
+                for start, end in zip(range(0, len(x_train), self.batch_size), 
+                                      range(self.batch_size, len(x_train)+1, 
+                                            self.batch_size)):
+                    batch_x = np.array(x_train[start:end])
+                    batch_x2 = np.array(x2_train[start:end])
+                    batch_y = np.array(y_train[start:end])
+                    cost = self.train_iter(sess, batch_x, batch_x2, batch_y)
+                    epoch_loss += cost
+                self.testsum(sess, x_test, x2_test, y_test)
+                self.trainsum(sess, x_train, x2_train, y_train)
+                self.imgsum(sess, x_img)
+                testaccuracy = self.accuracy(sess, x_test, x2_test, y_test)
+                trainaccuracy = self.accuracy(sess, x_train[:self.testsize], 
+                                              x2_train[:self.testsize], 
+                                              y_train[:self.testsize])
+                print("finished epoch {} of {}.".format(epoch+1, epochs) +
+                      " test accuracy: {:.3%},".format(testaccuracy) + 
+                      " train accuracy: {:.3%},".format(trainaccuracy) +
+                      " epoch loss: {}".format(epoch_loss))
+                self.save(sess)
+        return testaccuracy
+        
     
     
 
@@ -176,28 +239,6 @@ class Convnet():
 def init_weights(shape, name):
     # stddev gives best performance around 0.01. values of 0.4+ stop convergance
     return tf.Variable(tf.truncated_normal(shape, stddev=0.01, name=name), name=name)
-
-def train_neural_network(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, model):
-    # number of cycles of feed forward and back propagation
-    hm_epochs = 5
-    batch_size = 100
-    print('starting training')
-    with tf.Session() as sess:   
-        model.initialize(sess)
-        for epoch in range(hm_epochs):
-            epoch_loss = 0
-            for start, end in zip(range(0, len(x_train), batch_size), range(batch_size, len(x_train)+1, batch_size)):
-                if end > len(x_train):
-                    end = len(x_train)
-                batch_x = np.array(x_train[start:end])
-                batch_x2 = np.array(x2_train[start:end])
-                batch_y = np.array(y_train[start:end])
-                c = model.train_iter(sess, batch_x, batch_x2, batch_y)
-                epoch_loss += c
-            accuracy = model.accuracy(sess, x_test, x2_test, y_test)
-            print("finished epoch {} of {}. current accuracy: {}".format(epoch+1, hm_epochs, accuracy))
-            model.save(sess)
-    return accuracy
 
 def split_data(data, testsize):            
     x = np.array([i[0] for i in data])
@@ -278,11 +319,9 @@ def gridsearch(log_folder,x_train, x2_train, y_train, x_test, x2_test, y_test,x_
 def main():
     x_train, x2_train, y_train, x_test, x2_test, y_test = load_and_split_data(1000)   
     x_img = pick_image_for_class(x_test,y_test)    
-    log_folder = "./logs/cnnoop2_logs"
+    log_folder = "./logs/cnnoop_logs"
     model = Convnet('oopmod1',log_folder)    
-    accuracy = train_neural_network(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, model)
-    return accuracy
-     
+    model.train(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, 5)     
 
 if __name__ == "__main__":
     main()
