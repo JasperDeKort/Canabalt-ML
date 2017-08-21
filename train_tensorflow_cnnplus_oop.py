@@ -11,6 +11,7 @@ import os
 
 tf.reset_default_graph()
 
+
 class Convnet():
     def __init__(self, name, logdir):
         self.name = name
@@ -24,11 +25,18 @@ class Convnet():
         ## model layer properties
         self.input_keep = 0.8
         self.layer_keep = 0.4
-        self.filtersize= 5
+        self.filtersize = 5
         self.l1_outputchan = 16
         self.l2_outputchan = 16
         self.finallayer_in = (15*20*self.l2_outputchan)
         self.denselayernodes = 256
+        self.f1shape = [self.filtersize, self.filtersize,
+                        self.inputsize[2], self.l1_outputchan]
+        self.f2shape = [self.filtersize, self.filtersize,
+                        self.l1_outputchan, self.l2_outputchan]
+        self.w1shape = [self.finallayer_in + self.plusfeat,
+                        self.denselayernodes]
+        self.w2shape = [self.denselayernodes,self.n_classes]
         
         ## cost function settings
         self.epsilon = 0.3
@@ -37,25 +45,33 @@ class Convnet():
         self.beta2 = 0.95
         
         ## placeholders for input and output
-        self.x = tf.placeholder('float', [None] + self.inputsize, name='input_data')
-        self.x2 = tf.placeholder('float', [None, self.plusfeat] , name='input_data2')
-        self.y = tf.placeholder('float', [None, self.n_classes], name='output_data')
+        with tf.name_scope('input_data'):
+            self.x = tf.placeholder('float', [None] + self.inputsize, name='x')
+            self.x2 = tf.placeholder('float', [None, self.plusfeat], name='x2')
+        with tf.name_scope('output_data'):
+            self.y = tf.placeholder('float', [None, self.n_classes], name='y')
         
         ## filters and weights
-        self.filter1 = init_weights([self.filtersize,self.filtersize,self.inputsize[2], self.l1_outputchan], "filter_1")
-        self.filter2 = init_weights([self.filtersize,self.filtersize,self.l1_outputchan, self.l2_outputchan], "filter_2")
-        self.weights1 = init_weights([self.finallayer_in + self.plusfeat,self.denselayernodes],"weights_1")
-        self.weights2 = init_weights([self.denselayernodes,self.n_classes],"weights_2")
+        self.filter1 = init_weights(self.f1shape, "filter_1")
+        self.filter2 = init_weights(self.f2shape, "filter_2")
+        self.weights1 = init_weights(self.w1shape,"weights_1")
+        self.weights2 = init_weights(self.w2shape,"weights_2")
         
         ## model layers
         with tf.name_scope("hidden_1_conv"):
-            self.conv1 = tf.nn.conv2d(self.x, self.filter1,strides=[1,1,1,1],padding="SAME")
+            self.conv1 = tf.nn.conv2d(self.x, self.filter1,
+                                      strides=[1,1,1,1],padding="SAME")
+            self.conv1rel = tf.nn.relu(self.conv1)
         with tf.name_scope("max_pooling_layer_1"):
-            self.pool1 = tf.layers.max_pooling2d(inputs=self.conv1, pool_size=[2 , 2], strides=2)
+            self.pool1 = tf.layers.max_pooling2d(inputs=self.conv1rel, 
+                                                 pool_size=[2 , 2], strides=2)
         with tf.name_scope("hidden_2_conv"):
-            self.conv2 = tf.nn.conv2d(self.pool1, filter=self.filter2,strides=[1,1,1,1],padding="SAME")
+            self.conv2 = tf.nn.conv2d(self.pool1, filter=self.filter2, 
+                                      strides=[1,1,1,1],padding="SAME")
+            self.conv2rel = tf.nn.relu(self.conv2)
         with tf.name_scope("max_pooling_layer_2"):
-            self.pool2 = tf.layers.max_pooling2d(inputs=self.conv2, pool_size=[2, 2], strides=2)
+            self.pool2 = tf.layers.max_pooling2d(inputs=self.conv2rel, 
+                                                 pool_size=[2, 2], strides=2)
         with tf.name_scope("hidden_3_dense"):
             self.pool2_flat = tf.reshape(self.pool2, [-1, self.finallayer_in])
             self.mergeflat = tf.concat([self.pool2_flat, self.x2],1)
@@ -66,15 +82,18 @@ class Convnet():
         
         ## cost function
         with tf.name_scope("cost"):
-            self.cost = tf.losses.softmax_cross_entropy(onehot_labels=self.y, logits=self.output)
+            self.cost = tf.losses.softmax_cross_entropy(onehot_labels=self.y, 
+                                                        logits=self.output)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,
-                                                    epsilon=self.epsilon, beta1=self.beta1,
+                                                    epsilon=self.epsilon, 
+                                                    beta1=self.beta1,
                                                     beta2=self.beta2).minimize(self.cost)
         ## accuracy calculation
-        self.test_y = tf.argmax(self.y, 1)
-        self.pred_y = tf.argmax(self.output,1)
-        self.correct_pred = tf.equal(self.test_y, self.pred_y) # Count correct predictions
-        self.acc_op = tf.reduce_mean(tf.cast(self.correct_pred, "float"))
+        with tf.name_scope("acc_calc"):
+            self.test_y = tf.argmax(self.y, 1)
+            self.pred_y = tf.argmax(self.output,1)
+            self.correct_pred = tf.equal(self.test_y, self.pred_y)
+            self.acc_op = tf.reduce_mean(tf.cast(self.correct_pred, "float"))
         
         ## summary generation
         with tf.name_scope("test"):
@@ -108,27 +127,34 @@ class Convnet():
                              max_outputs=self.l1_outputchan*self.inputsize[2])
         
         ## generate images from filter pass through results. 1 for each class.        
-        with tf.name_scope("f1pass"):
-            self.imageconvlist = []
-            self.imageconv1 = tf.nn.relu(tf.nn.conv2d(self.x, self.filter1,strides=[1,1,1,1],padding="SAME"))
+        with tf.name_scope("f1_pass_through"):
+            imageconvlist = []
             for i in range(self.n_classes):
-                self.imageconvlist.append(tf.transpose(tf.reshape(self.imageconv1[i],[1,60,80,self.l1_outputchan]), [3,1,2,0]))        
-                tf.summary.image('number_{}'.format(i), self.imageconvlist[i],max_outputs = self.l1_outputchan)
+                reshape = tf.reshape(self.conv1rel[i],
+                                     [1,60,80,self.l1_outputchan])
+                convtrans = tf.transpose( reshape, [3,1,2,0])
+                imageconvlist.append(convtrans)        
+                tf.summary.image('number_{}'.format(i), 
+                                 imageconvlist[i],
+                                 max_outputs = self.l1_outputchan)
         
-        with tf.name_scope("f2pass"):
-            self.imageconvlist2 = []
-            self.imagepool1 = tf.layers.max_pooling2d(inputs=self.imageconv1, pool_size=[2 , 2], strides=2)
-            self.imageconv2 = tf.nn.relu(tf.nn.conv2d(self.imagepool1, self.filter2,strides=[1,1,1,1],padding="SAME"))
+        with tf.name_scope("f2_pass_through"):
+            imageconvlist2 = []
             for i in range(self.n_classes):
-                self.imageconvlist2.append(tf.transpose(tf.reshape(self.imageconv2[i],[1,30,40,self.l2_outputchan]), [3,1,2,0]))
-                tf.summary.image('number_{}'.format(i), self.imageconvlist2[i],max_outputs = self.l2_outputchan)
+                reshape = tf.reshape(self.conv2rel[i],
+                                     [1,30,40,self.l2_outputchan])
+                convtrans = tf.transpose(reshape, [3,1,2,0])
+                imageconvlist2.append(convtrans)
+                tf.summary.image('number_{}'.format(i), 
+                                 imageconvlist2[i],
+                                 max_outputs = self.l2_outputchan)
                 
         self.trainmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='train') + \
                                       tf.get_collection(tf.GraphKeys.SUMMARIES, scope='visualization_filter1') + \
                                       tf.get_collection(tf.GraphKeys.SUMMARIES, scope='weights'))
         self.testmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='test'))
-        self.imagepassmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f1pass') + \
-                                          tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f2pass'))
+        self.imagepassmerge = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f1_pass_through') + \
+                                          tf.get_collection(tf.GraphKeys.SUMMARIES, scope='f2_pass_through'))
         
         ## add desired tensors to collection for easy later restoring       
         tf.add_to_collection("prediction", self.output)
@@ -202,9 +228,9 @@ class Convnet():
         filename = self.logdir + '/' + self.name
         self.saver.save(sess, filename, global_step=self.i)
         self.writer.flush()
-        self.writer.close()
         
-    def train(self, x_train, x2_train, y_train, x_test, x2_test, y_test, x_img, epochs):
+    def train(self, x_train, x2_train, y_train, 
+              x_test, x2_test, y_test, x_img, epochs):
         print("starting training")
         with tf.Session() as sess:
             self.initialize(sess)
@@ -230,15 +256,17 @@ class Convnet():
                       " train accuracy: {:.3%},".format(trainaccuracy) +
                       " epoch loss: {}".format(epoch_loss))
                 self.save(sess)
-        return testaccuracy
-        
-    
-    
+            self.writer.close()
+        return testaccuracy    
 
 
 def init_weights(shape, name):
-    # stddev gives best performance around 0.01. values of 0.4+ stop convergance
-    return tf.Variable(tf.truncated_normal(shape, stddev=0.01, name=name), name=name)
+    # stddev gives best performance around 0.01. 
+    # values of 0.4+ stop convergance
+    with tf.name_scope(name):
+        tnorm = tf.truncated_normal(shape, stddev=0.01, name=name)
+        var = tf.Variable(tnorm, name=name)
+    return var
 
 def split_data(data, testsize):            
     x = np.array([i[0] for i in data])
@@ -286,7 +314,8 @@ def pick_image_for_class(x_test,y_test):
 #                                    cost, x, x2, y, layer_keep_holder,log_folder)
 #    return accuracy    
 
-def gridsearch(log_folder,x_train, x2_train, y_train, x_test, x2_test, y_test,x_img):
+def gridsearch(log_folder,x_train, x2_train, y_train, 
+               x_test, x2_test, y_test,x_img):
     epsilons = [0.3, 1, 3]
     learning_rates = [0.003, 0.01]
     beta1s = [0.8, 0.9, 0.95]
@@ -319,9 +348,9 @@ def gridsearch(log_folder,x_train, x2_train, y_train, x_test, x2_test, y_test,x_
 def main():
     x_train, x2_train, y_train, x_test, x2_test, y_test = load_and_split_data(1000)   
     x_img = pick_image_for_class(x_test,y_test)    
-    log_folder = "./logs/cnnoop_logs"
+    log_folder = "./logs/cnnoop2_logs"
     model = Convnet('oopmod1',log_folder)    
-    model.train(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, 5)     
+    model.train(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, 15)     
 
 if __name__ == "__main__":
     main()
