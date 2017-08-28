@@ -52,6 +52,7 @@ class Convnet():
             self.x2 = tf.placeholder('float', [None, self.plusfeat], name='x2')
         with tf.name_scope('output_data'):
             self.y = tf.placeholder('float', [None, self.n_classes], name='y')
+        self.layer_keep_holder = tf.placeholder("float", name="input_keep")
         
         ## filters and weights
         self.filter1 = init_weights(self.f1shape, "filter_1")
@@ -71,40 +72,40 @@ class Convnet():
         ## model layers
         with tf.name_scope("hidden_1_conv"):
             self.conv1 = tf.nn.conv2d(self.x, self.filter1,
-                                      strides=[1,2,2,1],padding="VALID")
+                                      strides=[1,1,1,1],padding="VALID")
             self.conv1rel = tf.nn.relu(self.conv1)
-#        with tf.name_scope("max_pooling_layer_1"):
-#            self.pool1 = tf.layers.max_pooling2d(inputs=self.conv1rel, 
-#                                                 pool_size=[2 , 2], strides=2)
+        with tf.name_scope("max_pooling_layer_1"):
+            self.pool1 = tf.layers.max_pooling2d(inputs=self.conv1rel, 
+                                                 pool_size=[2 , 2], strides=2)
         with tf.name_scope("hidden_2_conv"):
-            self.conv2 = tf.nn.conv2d(self.conv1rel, filter=self.filter2, 
-                                      strides=[1,2,2,1],padding="VALID")
+            self.conv2 = tf.nn.conv2d(self.pool1, filter=self.filter2, 
+                                      strides=[1,1,1,1],padding="VALID")
             self.conv2rel = tf.nn.relu(self.conv2)
-#        with tf.name_scope("max_pooling_layer_2"):
-#            self.pool2 = tf.layers.max_pooling2d(inputs=self.conv2rel, 
-#                                                 pool_size=[2, 2], strides=2)
+        with tf.name_scope("max_pooling_layer_2"):
+            self.pool2 = tf.layers.max_pooling2d(inputs=self.conv2rel, 
+                                                 pool_size=[2, 2], strides=2)
         with tf.name_scope("hidden_3_conv"):
-            self.conv3 = tf.nn.conv2d(self.conv2rel, filter=self.filter3, 
+            self.conv3 = tf.nn.conv2d(self.pool2, filter=self.filter3, 
                                       strides=[1,1,1,1],padding="VALID")
             self.conv3rel = tf.nn.relu(self.conv3)
         with tf.name_scope("hidden_4_dense"):
             self.pool2_flat = tf.reshape(self.conv3rel, [-1, self.finallayer_in])
             self.mergeflat = tf.concat([self.pool2_flat, self.x2],1)
-            #self.dropout = tf.nn.dropout(self.mergeflat, self.layer_keep)
+#            self.dropout = tf.nn.dropout(self.mergeflat, self.layer_keep_holder)
             self.layer4 = tf.nn.relu(tf.matmul(self.mergeflat, self.weights1))
         with tf.name_scope("hidden_5_dense"):
-            self.dropout2 = tf.nn.dropout(self.layer4, self.layer_keep)  
+            self.dropout2 = tf.nn.dropout(self.layer4, self.layer_keep_holder)  
             self.output = tf.nn.relu(tf.matmul(self.dropout2, self.weights2))
             
         ## cost function
         with tf.name_scope("cost"):
             self.cost = tf.losses.softmax_cross_entropy(onehot_labels=self.y, 
                                                         logits=self.output)
-            self.optimizer = tf.train.AdamOptimizer(self.learning_rate,
+            self.optimize = tf.train.AdamOptimizer(self.learning_rate,
                                                     self.beta1,
                                                     self.beta2,
-                                                    self.epsilon)
-            self.train_op = self.optimizer..minimize(self.cost)
+                                                    self.epsilon).minimize(self.cost)
+#            self.train_op = self.optimizer..minimize(self.cost)
             
         ## accuracy calculation
         with tf.name_scope("acc_calc"):
@@ -149,7 +150,7 @@ class Convnet():
             imageconvlist = []
             for i in range(self.n_classes):
                 reshape = tf.reshape(self.conv1rel[i],
-                                     [1,28,38,self.l1_outputchan])
+                                     [1,56,76,self.l1_outputchan])
                 convtrans = tf.transpose( reshape, [3,1,2,0])
                 imageconvlist.append(convtrans)        
                 tf.summary.image('number_{}'.format(i), 
@@ -160,7 +161,7 @@ class Convnet():
             imageconvlist2 = []
             for i in range(self.n_classes):
                 reshape = tf.reshape(self.conv2rel[i],
-                                     [1,12,17,self.l2_outputchan])
+                                     [1,24,34,self.l2_outputchan])
                 convtrans = tf.transpose(reshape, [3,1,2,0])
                 imageconvlist2.append(convtrans)
                 tf.summary.image('number_{}'.format(i), 
@@ -188,7 +189,7 @@ class Convnet():
         
         ## add desired tensors to collection for easy later restoring       
         tf.add_to_collection("prediction", self.output)
-        tf.add_to_collection("optimizer", self.optimizer)
+        tf.add_to_collection("optimizer", self.optimize)
         tf.add_to_collection("acc_op", self.acc_op )
         tf.add_to_collection("conf_mat", self.conf_mat )
         tf.add_to_collection("cost", self.cost )
@@ -203,10 +204,10 @@ class Convnet():
     def initialize(self, sess):
         if os.path.isfile( self.logdir + '/checkpoint'):
             print('previous version found. continguing')
-            self.saver.restore(sess,tf.train.latest_checkpoint(self.logdir))
+            ckpt = tf.train.latest_checkpoint(self.logdir)
+            self.saver.restore(sess,ckpt)
             #read checkpoint file and cast number at the end to int
-            ckpt = tf.train.get_checkpoint_state(self.logdir)
-            self.i = int(str(ckpt).split('-')[-1][:-2])
+            self.i = int(ckpt.split('-')[-1])
             self.writer = tf.summary.FileWriter(self.logdir, sess.graph)
         else:
             print('no previous model found. starting with untrained model')
@@ -217,35 +218,40 @@ class Convnet():
     def train_iter(self, sess, x_batch, x2_batch, y_batch):
         feed_dict = {self.x: x_batch, 
                      self.x2: x2_batch, 
-                     self.y: y_batch}
-        _, cost = sess.run([self.train_op, self.cost], feed_dict)
+                     self.y: y_batch,
+                     self.layer_keep_holder: self.layer_keep}
+        _, cost = sess.run([self.optimize, self.cost], feed_dict)
         self.i += len(x_batch)
         return cost   
     
     def predict(self, sess, x, x2):
         feed_dict = {self.x: x, 
-                     self.x2: x2}
+                     self.x2: x2,
+                     self.layer_keep_holder: 1}
         prediction = sess.run(self.output, feed_dict = feed_dict)
         return prediction
     
     def accuracy(self, sess, x, x2, y):
         feed_dict = {self.x: x,
                      self.x2: x2, 
-                     self.y: y}
+                     self.y: y,
+                     self.layer_keep_holder: 1}
         accuracy = sess.run(self.acc_op, feed_dict = feed_dict)
         return accuracy
     
     def testsum(self, sess, x, x2, y):
         feed_dict = {self.x: x, 
                      self.x2: x2, 
-                     self.y: y}
+                     self.y: y,
+                     self.layer_keep_holder: 1}
         summary = sess.run(self.testmerge, feed_dict=feed_dict)
         self.writer.add_summary(summary,self.i)
         
     def trainsum(self, sess, x, x2, y):
         feed_dict = {self.x: x[:self.testsize], 
                      self.x2: x2[:self.testsize], 
-                     self.y: y[:self.testsize]}
+                     self.y: y[:self.testsize],
+                     self.layer_keep_holder: 1}
         summary = sess.run(self.trainmerge, feed_dict=feed_dict)
         self.writer.add_summary(summary,self.i)
     
@@ -384,7 +390,7 @@ def gridsearch(log_folder,x_train, x2_train, y_train,
 def main():
     x_train, x2_train, y_train, x_test, x2_test, y_test = load_and_split_data(1000)   
     x_img = pick_image_for_class(x_test,y_test)    
-    log_folder = "./logs/cnnoop20_logs"
+    log_folder = "./logs/cnndropoutfix05x1pooling"
     model = Convnet('oopmod1',log_folder)    
     model.train(x_train, x2_train, y_train, x_test, x2_test, y_test,x_img, 15)     
 
